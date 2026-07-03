@@ -1,0 +1,69 @@
+name: agentnotes
+region: nyc
+
+services:
+  - name: agentnotes
+    github:
+      repo: extbn777/agentnotes-do-prod
+      branch: main
+      deploy_on_push: false
+    source_dir: /
+    environment_slug: node-js
+    build_command: pnpm install && pnpm build
+    run_command: pnpm start
+    http_port: 3000
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      failure_threshold: 3
+    envs:
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: ""
+      - key: CLERK_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: EDGE_STORE_ACCESS_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: EDGE_STORE_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: GOOGLE_AI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: DO_SPACES_BUCKET
+        scope: RUN_TIME
+        value: agentnotes-audio-prod
+      - key: DO_SPACES_REGION
+        scope: RUN_TIME
+        value: nyc3
+      - key: DO_SPACES_ENDPOINT
+        scope: RUN_TIME
+        value: https://nyc3.digitaloceanspaces.com
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
