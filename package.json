@@ -2,6 +2,11 @@
   "name": "agentnotes",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": "22.x",
+    "pnpm": "11.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
