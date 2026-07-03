@@ -4,7 +4,7 @@ region: nyc
 services:
   - name: agentnotes
     github:
-      repo: extbn777/agentnotes-do-prod
+      repo: StudentCristian/agentnotes-do-prod
       branch: main
       deploy_on_push: false
     source_dir: /
