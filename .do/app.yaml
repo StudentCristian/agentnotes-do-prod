@@ -36,11 +36,11 @@ services:
         type: SECRET
         value: ""
       - key: EDGE_STORE_ACCESS_KEY
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
         value: ""
       - key: EDGE_STORE_SECRET_KEY
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
         value: ""
       - key: GOOGLE_AI_API_KEY
