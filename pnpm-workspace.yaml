@@ -1,7 +1,7 @@
-onlyBuiltDependencies:
-  - '@scarf/scarf'
-  - bufferutil
-  - core-js
-  - sharp
-  - unrs-resolver
-  - utf-8-validate
+allowBuilds:
+  '@scarf/scarf': true
+  bufferutil: true
+  core-js: true
+  sharp: true
+  unrs-resolver: true
+  utf-8-validate: true
