@@ -6,7 +6,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { AppProviders } from "@/components/app-providers"
 
-function getRequiredEnv(name: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" | "CLERK_SECRET_KEY") {
+function getRequiredEnv(name: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY") {
   const value = process.env[name]
 
   if (!value) {
@@ -39,7 +39,6 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const clerkPublishableKey = getRequiredEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
-  getRequiredEnv("CLERK_SECRET_KEY")
   const cookieStore = await cookies()
   const themeCookie = cookieStore.get("theme")?.value
   const initialThemeClass =

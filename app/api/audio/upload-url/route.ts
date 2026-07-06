@@ -1,4 +1,5 @@
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 import { randomUUID } from 'node:crypto'
 import { auth } from '@clerk/nextjs/server'
