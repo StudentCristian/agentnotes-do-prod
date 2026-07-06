@@ -9,7 +9,7 @@ services:
       deploy_on_push: false
     source_dir: /
     environment_slug: node-js
-    build_command: pnpm install && pnpm build
+    build_command: pnpm install && pnpm exec baml-cli generate && pnpm build
     run_command: pnpm start
     http_port: 3000
     instance_size_slug: basic-xxs
