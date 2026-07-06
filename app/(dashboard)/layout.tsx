@@ -41,7 +41,7 @@ export default async function DashboardLayout({
               </SignUpButton>
               </>
             ) : (
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             )}
             <ThemeToggle />
           </div>

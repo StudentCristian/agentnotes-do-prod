@@ -123,7 +123,6 @@ export function NavUser() {
                       userButtonAvatarBox: "h-8 w-8",
                     },
                   }}
-                  afterSignOutUrl="/"
                   showName={false}
                 />
               </div>
