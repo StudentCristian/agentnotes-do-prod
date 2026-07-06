@@ -1,6 +1,12 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { backendClient } from "@/lib/edgestore-server"
+
+export const dynamic = "force-dynamic"
+
+async function getBackendClient() {
+  const { backendClient } = await import("@/lib/edgestore-server")
+  return backendClient
+}
 
 export async function GET() {
   try {
@@ -10,6 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const backendClient = await getBackendClient()
     const response = await backendClient.templates.listFiles({
       pagination: {
         currentPage: 1,
