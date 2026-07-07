@@ -3,9 +3,14 @@ import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
-async function getBackendClient() {
+async function listTemplateFiles() {
   const { backendClient } = await import("@/lib/edgestore-server")
-  return backendClient
+  return backendClient.templates.listFiles({
+    pagination: {
+      currentPage: 1,
+      pageSize: 100,
+    },
+  })
 }
 
 export async function GET() {
@@ -16,13 +21,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const backendClient = await getBackendClient()
-    const response = await backendClient.templates.listFiles({
-      pagination: {
-        currentPage: 1,
-        pageSize: 100,
-      },
-    })
+    const response = await listTemplateFiles()
 
     const templates = response.data.map((file) => ({
       id: file.url,

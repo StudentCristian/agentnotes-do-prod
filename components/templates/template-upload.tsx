@@ -169,9 +169,10 @@ export function TemplateUpload({ onTemplateSelected, disabled = false }: Templat
   return (
     <div className="flex flex-col gap-4">
       <UploaderProvider
-        uploadFn={async ({ file, onProgressChange }) => {
+        uploadFn={async ({ file, signal, onProgressChange }) => {
           const response = await edgestore.templates.upload({
             file,
+            signal,
             input: {
               fileName: file.name,
             },
