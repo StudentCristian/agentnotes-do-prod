@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import ffmpeg from 'fluent-ffmpeg'
-import ffmpegPath from 'ffmpeg-static'
 import { normalizeAudioContentType } from '@/lib/audio/spaces-audio'
 
 const OUTPUT_SAMPLE_RATE = 16000
+const runtimeRequire = createRequire(import.meta.url)
 
 function getInputExtension(contentType?: string) {
   const mediaType = contentType ? normalizeAudioContentType(contentType) : ''
@@ -32,8 +34,14 @@ function getInputExtension(contentType?: string) {
 }
 
 function ensureFfmpegPath() {
+  const ffmpegPath = runtimeRequire('ffmpeg-static') as string | null
+
   if (!ffmpegPath) {
     throw new Error('FFmpeg binary is not available')
+  }
+
+  if (!existsSync(ffmpegPath)) {
+    throw new Error(`FFmpeg binary path does not exist at runtime: ${ffmpegPath}`)
   }
 
   ffmpeg.setFfmpegPath(ffmpegPath)
