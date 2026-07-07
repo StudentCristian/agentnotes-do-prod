@@ -44,25 +44,25 @@ services:
         type: SECRET
         value: ""
       - key: GOOGLE_AI_API_KEY
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
         value: ""
       - key: DO_SPACES_KEY
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
         value: ""
       - key: DO_SPACES_SECRET
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
         value: ""
       - key: DO_SPACES_BUCKET
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         value: agentnotes-audio-prod
       - key: DO_SPACES_REGION
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         value: nyc3
       - key: DO_SPACES_ENDPOINT
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         value: https://nyc3.digitaloceanspaces.com
 
 alerts:
