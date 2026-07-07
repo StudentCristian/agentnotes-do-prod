@@ -9,14 +9,23 @@ async function getEdgeStoreHandler() {
 	return handler
 }
 
+function isEdgeStoreHealthCheck(request: NextRequest) {
+	return new URL(request.url).pathname === "/api/edgestore/health"
+}
+
 export async function GET(request: NextRequest) {
+	const handler = await getEdgeStoreHandler()
+
+	if (isEdgeStoreHealthCheck(request)) {
+		return handler(request)
+	}
+
 	const { userId } = await auth()
 
 	if (!userId) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 	}
 
-	const handler = await getEdgeStoreHandler()
 	return handler(request)
 }
 
