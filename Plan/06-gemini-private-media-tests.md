@@ -2,16 +2,15 @@
 
 ## Objetivo
 
-Dejar validado que BAML no reenvia URLs privadas o locales directamente a Gemini.
+Dejar validado que la transcripción de audio no depende de URLs públicas de Spaces ni de payloads base64 grandes hacia Gemini.
 
-Configuracion actual en `baml_src/clients.baml`:
+Configuración actual del flujo de audio:
 
-- `audio "send_base64"`
-- `image "send_base64"`
-- `pdf "send_base64"`
-- `video "send_base64"`
-
-Esto obliga a BAML a descargar la URL en el servidor y enviar el media embebido al proveedor.
+- El navegador sube el audio original a Spaces mediante presigned PUT.
+- El backend lee el objeto desde Spaces.
+- El backend normaliza el audio a WAV PCM mono.
+- El backend sube el WAV normalizado a Gemini Files API.
+- La transcripción usa el `file_uri` devuelto por Gemini.
 
 ## 1. Regenerar el cliente BAML
 
@@ -43,7 +42,7 @@ curl -fsS http://127.0.0.1:3000/api/health
 
 ## 3. Smoke test actual de audio
 
-Ejecutar el flujo `upload-url -> PUT -> /api/transcribe -> delete`:
+Ejecutar el flujo `upload-url -> PUT -> /api/transcribe -> /api/audio/delete`:
 
 ```bash
 DO_SPACES_KEY=minioadmin DO_SPACES_SECRET=minioadmin node scripts/smoke-audio-flow.mjs --base-url http://127.0.0.1:3000
@@ -60,9 +59,11 @@ cat /tmp/agentnotes-smoke.log
 Resultado esperado:
 
 - upload temporal verificado
-- borrado temporal verificado
+- objeto temporal retenido tras transcripción
+- borrado manual temporal verificado
 - transcripcion exitosa
 - no debe aparecer `Cannot fetch content from the provided URL`
+- no debe aparecer un error de tamaño por payload base64 hacia Gemini
 
 ## 4. Logs utiles
 
@@ -86,10 +87,10 @@ docker exec agentnote-app-1 bash -lc 'tail -n 200 /workspace/.next/dev/logs/next
 
 ## 5. Nota para futuros media types
 
-La configuracion ya cubre `audio`, `image`, `pdf` y `video` cuando la URL sea privada, local o firmada.
+La configuración BAML puede seguir siendo útil para otros medios, pero el flujo de audio productivo usa Gemini Files API para evitar depender de URLs públicas de Spaces o payloads base64 grandes.
 
 ## 6. Limitaciones
 
-- `video "send_base64"` puede no ser viable para archivos grandes por tamano de request o limites del proveedor.
-- Si en el futuro un video o PDF excede el tamano aceptable, habra que usar otro flujo: URL publica real, almacenamiento accesible por el proveedor, o particion del archivo.
+- En audio, la normalización WAV aumenta tamaño temporalmente; el WAV solo se usa para procesamiento.
+- Si en el futuro un video o PDF excede el tamano aceptable, habra que usar otro flujo: Files API, URL publica real, almacenamiento accesible por el proveedor, o particion del archivo.
 - El smoke test implementado hoy valida audio de punta a punta. Para `image`, `pdf` y `video` todavia no existe en esta repo un endpoint Gemini equivalente para ejecutar la misma prueba funcional.

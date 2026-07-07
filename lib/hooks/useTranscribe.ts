@@ -9,7 +9,7 @@ interface UseTranscribeOptions {
   onError?: (error: Error) => void
 }
 
-type TranscribePhase = "idle" | "uploading" | "transcribing" | "done" | "error"
+type TranscribePhase = "idle" | "uploading" | "transcribing" | "deleting" | "done" | "error"
 
 function normalizeRecordedAudioContentType(contentType: string) {
   const mediaType = contentType.split(";")[0]?.trim().toLowerCase()
@@ -39,6 +39,7 @@ export function useTranscribe(options?: UseTranscribeOptions) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [phase, setPhase] = useState<TranscribePhase>("idle")
+  const [audioObjectKey, setAudioObjectKey] = useState<string | null>(null)
 
   const transcribeAudio = useCallback(
     async (audioBlob: Blob) => {
@@ -69,6 +70,7 @@ export function useTranscribe(options?: UseTranscribeOptions) {
           uploadUrl: string
           objectKey: string
         }
+        setAudioObjectKey(uploadPayload.objectKey)
 
         const uploadResponse = await fetch(uploadPayload.uploadUrl, {
           method: "PUT",
@@ -118,10 +120,48 @@ export function useTranscribe(options?: UseTranscribeOptions) {
     [options]
   )
 
+  const deleteUploadedAudio = useCallback(async () => {
+    if (!audioObjectKey) {
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setPhase("deleting")
+
+    try {
+      const response = await fetch("/api/audio/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          objectKey: audioObjectKey,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await getTranscriptionErrorMessage(response))
+      }
+
+      setAudioObjectKey(null)
+      setPhase("idle")
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
+      setPhase("error")
+      options?.onError?.(error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [audioObjectKey, options])
+
   const reset = useCallback(() => {
     setData(null)
     setError(null)
     setIsLoading(false)
+    setAudioObjectKey(null)
     setPhase("idle")
   }, [])
 
@@ -131,6 +171,8 @@ export function useTranscribe(options?: UseTranscribeOptions) {
     isLoading,
     error,
     phase,
+    audioObjectKey,
+    deleteUploadedAudio,
     reset,
   }
 }

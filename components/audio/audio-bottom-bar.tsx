@@ -33,6 +33,7 @@ type RecordingState =
 
 interface AudioBottomBarProps {
   onAudioRecorded?: (blob: Blob) => void
+  onAudioDeleted?: () => void
   onTranscriptionStart?: () => void
   onTranscriptionComplete?: (data: ConsultationOutput) => void
   onTranscriptionError?: (error: Error) => void
@@ -41,6 +42,7 @@ interface AudioBottomBarProps {
 
 export function AudioBottomBar({
   onAudioRecorded,
+  onAudioDeleted,
   onTranscriptionStart,
   onTranscriptionComplete,
   onTranscriptionError,
@@ -53,7 +55,12 @@ export function AudioBottomBar({
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
-  const { transcribeAudio, isLoading: isTranscribing } = useTranscribe({
+  const {
+    transcribeAudio,
+    deleteUploadedAudio,
+    audioObjectKey,
+    isLoading: isTranscribing,
+  } = useTranscribe({
     onSuccess: (data) => {
       setState("recorded")
       onTranscriptionComplete?.(data)
@@ -90,7 +97,8 @@ export function AudioBottomBar({
   const resetRecordingData = useCallback(() => {
     setAudioBlob(null)
     audioChunksRef.current = []
-  }, [])
+    onAudioDeleted?.()
+  }, [onAudioDeleted])
 
   useEffect(() => {
     return () => {
@@ -207,7 +215,7 @@ export function AudioBottomBar({
     }
   }, [])
 
-  const deleteRecording = useCallback(() => {
+  const deleteRecording = useCallback(async () => {
     cleanupAudioPlayback()
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -215,12 +223,15 @@ export function AudioBottomBar({
       mediaRecorderRef.current.stop()
     } else {
       cleanupMediaStream()
+      if (audioObjectKey) {
+        await deleteUploadedAudio()
+      }
       resetRecordingData()
       setState("idle")
     }
 
     setTranscriptionError(null)
-  }, [cleanupAudioPlayback, cleanupMediaStream, resetRecordingData])
+  }, [audioObjectKey, cleanupAudioPlayback, cleanupMediaStream, deleteUploadedAudio, resetRecordingData])
 
   const handleTranscription = useCallback(async () => {
     let currentAudioBlob = audioBlob
@@ -401,7 +412,7 @@ export function AudioBottomBar({
                 <Button
                   variant="ghost"
                   size="icon"
-                  disabled={!hasRecording || state === "loading" || state === "transcribing" || disabled}
+                  disabled={!hasRecording || state === "loading" || state === "transcribing" || isTranscribing || disabled}
                   aria-label="Eliminar"
                   title="Eliminar grabación"
                   className={actionButtonClassName}
@@ -418,7 +429,7 @@ export function AudioBottomBar({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={deleteRecording}>
+                  <AlertDialogAction onClick={() => void deleteRecording()}>
                     Eliminar audio
                   </AlertDialogAction>
                 </AlertDialogFooter>

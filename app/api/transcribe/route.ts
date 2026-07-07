@@ -2,44 +2,34 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { auth } from '@clerk/nextjs/server'
-import { DeleteObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { 
-  validateBAMLEnvironment, 
-  transcribeConsultationWithBAML,
-  type ConsultationOutput,
-} from '@/lib/bamlClient'
 import {
-  getSpacesBucket,
-  getSpacesCredentials,
-  getSpacesEndpoint,
-  getSpacesForcePathStyle,
-  getSpacesRegion,
-} from '@/lib/spaces'
+  createAudioSpacesClient,
+  getTemporaryAudioObject,
+  TEMP_AUDIO_PREFIX,
+} from '@/lib/audio/spaces-audio'
+import { normalizeAudioToWavPcmMono } from '@/lib/audio/normalize'
+import {
+  deleteGeminiFile,
+  transcribeConsultationWithGeminiFile,
+  uploadAudioToGeminiFile,
+  validateGeminiFilesEnvironment,
+} from '@/lib/gemini-files-client'
 
 const transcribeSchema = z.object({
-  objectKey: z.string().min(1),
+  objectKey: z.string().min(1).startsWith(TEMP_AUDIO_PREFIX),
   fieldsSchema: z.string().min(1),
   contentType: z.string().min(1).optional(),
 })
 
-function createS3Client() {
-  return new S3Client({
-    endpoint: getSpacesEndpoint(),
-    region: getSpacesRegion(),
-    forcePathStyle: getSpacesForcePathStyle(),
-    credentials: getSpacesCredentials(),
-  })
-}
-
 /**
  * POST /api/transcribe
  * 
- * Transcribes audio from object storage and structures the output using BAML + Google Gemini.
+ * Transcribes audio from object storage through WAV normalization and Gemini Files API.
  */
 export async function POST(request: NextRequest) {
-  let objectKey: string | null = null
+  let geminiFileName: string | null = null
 
   try {
     const { userId } = await auth()
@@ -48,30 +38,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    validateBAMLEnvironment()
+    validateGeminiFilesEnvironment()
     const payload = transcribeSchema.parse(await request.json())
-    const s3 = createS3Client()
-    objectKey = payload.objectKey
+    const s3 = createAudioSpacesClient()
 
-    const objectResponse = await s3.send(
-      new GetObjectCommand({
-        Bucket: getSpacesBucket(),
-        Key: payload.objectKey,
-      })
-    )
+    const objectResponse = await getTemporaryAudioObject(s3, payload.objectKey)
 
     if (!objectResponse.Body) {
       throw new Error('Uploaded audio object is empty')
     }
 
-    const audioBytes = await objectResponse.Body.transformToByteArray()
-    const audioBase64 = Buffer.from(audioBytes).toString('base64')
     const mediaType = payload.contentType ?? objectResponse.ContentType
+    const audioBytes = Buffer.from(await objectResponse.Body.transformToByteArray())
+    const normalizedAudio = await normalizeAudioToWavPcmMono(audioBytes, mediaType)
+    const geminiFile = await uploadAudioToGeminiFile(normalizedAudio, 'audio/wav')
+    geminiFileName = geminiFile.name
 
-    const transcriptionResult: ConsultationOutput = await transcribeConsultationWithBAML(
-      audioBase64,
+    const transcriptionResult = await transcribeConsultationWithGeminiFile(
+      geminiFile.uri,
       payload.fieldsSchema,
-      mediaType
+      'audio/wav'
     )
 
     return NextResponse.json(transcriptionResult)
@@ -84,17 +70,11 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   } finally {
-    if (objectKey) {
+    if (geminiFileName) {
       try {
-        const s3 = createS3Client()
-        await s3.send(
-          new DeleteObjectCommand({
-            Bucket: getSpacesBucket(),
-            Key: objectKey,
-          })
-        )
+        await deleteGeminiFile(geminiFileName)
       } catch (error) {
-        console.error('[Transcribe] Failed to delete temporary audio object:', error)
+        console.error('[Transcribe] Failed to delete Gemini temporary audio file:', error)
       }
     }
   }

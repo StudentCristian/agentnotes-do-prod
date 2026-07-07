@@ -206,12 +206,30 @@ async function main() {
 
     const transcribePayload = await transcribeResponse.json()
 
-    await assertObjectDeleted(s3, bucket, uploadPayload.objectKey)
-    console.log('[smoke] temporary object deletion verified')
+    await assertObjectExists(s3, bucket, uploadPayload.objectKey)
+    console.log('[smoke] temporary object retained after transcription')
 
     if (!transcribeResponse.ok) {
       throw new Error(`transcribe failed: ${JSON.stringify(transcribePayload)}`)
     }
+
+    console.log('[smoke] deleting temporary object through /api/audio/delete')
+    const deleteResponse = await fetch(`${baseUrl}/api/audio/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        objectKey: uploadPayload.objectKey,
+      }),
+    })
+
+    const deletePayload = await deleteResponse.json()
+
+    if (!deleteResponse.ok) {
+      throw new Error(`delete failed: ${JSON.stringify(deletePayload)}`)
+    }
+
+    await assertObjectDeleted(s3, bucket, uploadPayload.objectKey)
+    console.log('[smoke] temporary object manual deletion verified')
 
     console.log('[smoke] transcription succeeded')
     console.log(JSON.stringify({

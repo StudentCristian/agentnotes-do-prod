@@ -246,6 +246,7 @@ export function NuevaConsultaClient() {
         <div className="mx-auto max-w-5xl">
           <AudioBottomBar
             onAudioRecorded={setRecordedAudio}
+            onAudioDeleted={() => setRecordedAudio(null)}
             onTranscriptionStart={() => {
               setIsTranscribing(true)
               setTranscriptionError(null)

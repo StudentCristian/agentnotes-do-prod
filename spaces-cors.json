@@ -1,7 +1,7 @@
 {
   "CORSRules": [
     {
-      "AllowedOrigins": ["https://replace-with-production-domain.example"],
+      "AllowedOrigins": ["https://agentnotes-rehz2.ondigitalocean.app"],
       "AllowedMethods": ["PUT", "OPTIONS"],
       "AllowedHeaders": ["Content-Type", "x-amz-acl"],
       "MaxAgeSeconds": 3600
