@@ -72,13 +72,21 @@ export function useTranscribe(options?: UseTranscribeOptions) {
         }
         setAudioObjectKey(uploadPayload.objectKey)
 
-        const uploadResponse = await fetch(uploadPayload.uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": contentType,
-          },
-          body: audioBlob,
-        })
+        let uploadResponse: Response
+
+        try {
+          uploadResponse = await fetch(uploadPayload.uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": contentType,
+            },
+            body: audioBlob,
+          })
+        } catch (uploadError) {
+          throw new Error(
+            "Audio upload failed before the server could transcribe it. This usually means the browser could not reach the signed Spaces URL or the bucket CORS policy rejected the PUT request."
+          )
+        }
 
         if (!uploadResponse.ok) {
           throw new Error(`Audio upload failed: ${uploadResponse.statusText}`)

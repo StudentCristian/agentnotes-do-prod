@@ -2,8 +2,9 @@
   "CORSRules": [
     {
       "AllowedOrigins": ["https://agentnotes-rehz2.ondigitalocean.app"],
-      "AllowedMethods": ["PUT", "OPTIONS"],
-      "AllowedHeaders": ["Content-Type", "x-amz-acl"],
+      "AllowedMethods": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
       "MaxAgeSeconds": 3600
     }
   ]
