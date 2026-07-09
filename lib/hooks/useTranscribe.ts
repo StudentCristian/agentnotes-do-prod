@@ -34,6 +34,26 @@ async function getTranscriptionErrorMessage(response: Response) {
   return `Transcription failed: ${response.statusText}`
 }
 
+async function uploadAudioViaBackend(audioBlob: Blob, contentType: string) {
+  const response = await fetch("/api/audio/upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": contentType,
+      "X-File-Name": "consultation.webm",
+    },
+    body: audioBlob,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getTranscriptionErrorMessage(response))
+  }
+
+  return (await response.json()) as {
+    objectKey: string
+    uploadedVia: "server-fallback"
+  }
+}
+
 export function useTranscribe(options?: UseTranscribeOptions) {
   const [data, setData] = useState<ConsultationOutput | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -70,7 +90,6 @@ export function useTranscribe(options?: UseTranscribeOptions) {
           uploadUrl: string
           objectKey: string
         }
-        setAudioObjectKey(uploadPayload.objectKey)
 
         let uploadResponse: Response
 
@@ -83,14 +102,38 @@ export function useTranscribe(options?: UseTranscribeOptions) {
             body: audioBlob,
           })
         } catch (uploadError) {
-          throw new Error(
-            "Audio upload failed before the server could transcribe it. This usually means the browser could not reach the signed Spaces URL or the bucket CORS policy rejected the PUT request."
-          )
+          const fallbackUpload = await uploadAudioViaBackend(audioBlob, contentType)
+          setAudioObjectKey(fallbackUpload.objectKey)
+          setPhase("transcribing")
+
+          const fallbackResponse = await fetch("/api/transcribe", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              objectKey: fallbackUpload.objectKey,
+              fieldsSchema: buildConsultationFieldSchema(),
+              contentType,
+            }),
+          })
+
+          if (!fallbackResponse.ok) {
+            throw new Error(await getTranscriptionErrorMessage(fallbackResponse))
+          }
+
+          const fallbackResult: ConsultationOutput = await fallbackResponse.json()
+          setData(fallbackResult)
+          setPhase("done")
+          options?.onSuccess?.(fallbackResult)
+          return fallbackResult
         }
 
         if (!uploadResponse.ok) {
           throw new Error(`Audio upload failed: ${uploadResponse.statusText}`)
         }
+
+        setAudioObjectKey(uploadPayload.objectKey)
 
         setPhase("transcribing")
 

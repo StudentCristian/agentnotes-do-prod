@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { DeleteObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import {
   getSpacesBucket,
@@ -86,6 +86,25 @@ export async function createTemporaryAudioReadUrl(
       Key: objectKey,
     }),
     { expiresIn }
+  )
+}
+
+export async function putTemporaryAudioObject(
+  s3: S3Client,
+  objectKey: string,
+  body: Buffer,
+  contentType: string
+) {
+  assertTemporaryAudioObjectKey(objectKey)
+  assertSupportedAudioContentType(contentType)
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: getSpacesBucket(),
+      Key: objectKey,
+      Body: body,
+      ContentType: contentType,
+    })
   )
 }
 
