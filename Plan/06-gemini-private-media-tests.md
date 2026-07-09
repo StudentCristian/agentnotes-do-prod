@@ -1,16 +1,15 @@
-# Gemini Private Media Tests
+# BAML Signed Audio URL Tests
 
 ## Objetivo
 
-Dejar validado que la transcripción de audio no depende de URLs públicas de Spaces ni de payloads base64 grandes hacia Gemini.
+Dejar validado que la transcripción de audio usa BAML con URL firmada temporal de lectura sobre Spaces privados, sin depender de URLs públicas ni de payloads base64 grandes.
 
 Configuración actual del flujo de audio:
 
 - El navegador sube el audio original a Spaces mediante presigned PUT.
-- El backend lee el objeto desde Spaces.
-- El backend normaliza el audio a WAV PCM mono.
-- El backend sube el WAV normalizado a Gemini Files API.
-- La transcripción usa el `file_uri` devuelto por Gemini.
+- El backend genera una URL firmada temporal de lectura para el objeto privado.
+- El backend invoca BAML con `Audio.fromUrl(...)`.
+- El provider Google AI recibe la URL con `send_url`.
 
 ## 1. Regenerar el cliente BAML
 
@@ -60,10 +59,11 @@ Resultado esperado:
 
 - upload temporal verificado
 - objeto temporal retenido tras transcripción
+- transcripcion BAML exitosa con salida estructurada valida
 - borrado manual temporal verificado
-- transcripcion exitosa
 - no debe aparecer `Cannot fetch content from the provided URL`
 - no debe aparecer un error de tamaño por payload base64 hacia Gemini
+- no debe aparecer uso activo de Gemini Files API en el camino de produccion
 
 ## 4. Logs utiles
 
@@ -85,12 +85,12 @@ Log interno de Next:
 docker exec agentnote-app-1 bash -lc 'tail -n 200 /workspace/.next/dev/logs/next-development.log'
 ```
 
-## 5. Nota para futuros media types
+## 5. Camino legado
 
-La configuración BAML puede seguir siendo útil para otros medios, pero el flujo de audio productivo usa Gemini Files API para evitar depender de URLs públicas de Spaces o payloads base64 grandes.
+La implementacion basada en `lib/gemini-files-client.ts` se conserva como flujo legado y fallback de referencia. No debe ser el camino activo mientras BAML con URL firmada funcione de forma confiable.
 
 ## 6. Limitaciones
 
-- En audio, la normalización WAV aumenta tamaño temporalmente; el WAV solo se usa para procesamiento.
+- Si el proveedor no puede leer de forma consistente la URL firmada de Spaces, la migracion debe revertirse temporalmente al flujo legado de Gemini Files API.
 - Si en el futuro un video o PDF excede el tamano aceptable, habra que usar otro flujo: Files API, URL publica real, almacenamiento accesible por el proveedor, o particion del archivo.
 - El smoke test implementado hoy valida audio de punta a punta. Para `image`, `pdf` y `video` todavia no existe en esta repo un endpoint Gemini equivalente para ejecutar la misma prueba funcional.

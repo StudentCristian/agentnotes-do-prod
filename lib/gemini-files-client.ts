@@ -1,3 +1,8 @@
+/**
+ * Legacy audio transcription path retained for fallback/reference.
+ * The active production path uses BAML with Audio.fromUrl() and signed Spaces URLs.
+ */
+
 import { normalizeStructuredFields } from '@/lib/consultation-fields'
 import type { ConsultationOutput } from '@/lib/bamlClient'
 

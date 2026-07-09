@@ -193,7 +193,7 @@ async function main() {
     await assertObjectExists(s3, bucket, uploadPayload.objectKey)
     console.log('[smoke] temporary object upload verified')
 
-    console.log('[smoke] calling /api/transcribe')
+    console.log('[smoke] calling /api/transcribe (BAML via signed Spaces URL)')
     const transcribeResponse = await fetch(`${baseUrl}/api/transcribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -211,6 +211,14 @@ async function main() {
 
     if (!transcribeResponse.ok) {
       throw new Error(`transcribe failed: ${JSON.stringify(transcribePayload)}`)
+    }
+
+    if (typeof transcribePayload.transcript_final !== 'string') {
+      throw new Error('transcribe returned an invalid transcript payload')
+    }
+
+    if (typeof transcribePayload.structured_fields !== 'object' || !transcribePayload.structured_fields) {
+      throw new Error('transcribe returned invalid structured fields')
     }
 
     console.log('[smoke] deleting temporary object through /api/audio/delete')
@@ -231,7 +239,7 @@ async function main() {
     await assertObjectDeleted(s3, bucket, uploadPayload.objectKey)
     console.log('[smoke] temporary object manual deletion verified')
 
-    console.log('[smoke] transcription succeeded')
+    console.log('[smoke] BAML transcription succeeded')
     console.log(JSON.stringify({
       transcript_final: transcribePayload.transcript_final,
       missing_fields: transcribePayload.missing_fields,

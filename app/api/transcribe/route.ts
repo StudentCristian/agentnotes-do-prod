@@ -5,17 +5,14 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import {
+  createTemporaryAudioReadUrl,
   createAudioSpacesClient,
-  getTemporaryAudioObject,
   TEMP_AUDIO_PREFIX,
 } from '@/lib/audio/spaces-audio'
-import { normalizeAudioToWavPcmMono } from '@/lib/audio/normalize'
 import {
-  deleteGeminiFile,
-  transcribeConsultationWithGeminiFile,
-  uploadAudioToGeminiFile,
-  validateGeminiFilesEnvironment,
-} from '@/lib/gemini-files-client'
+  transcribeConsultationWithBAML,
+  validateBAMLEnvironment,
+} from '@/lib/bamlClient'
 
 const transcribeSchema = z.object({
   objectKey: z.string().min(1).startsWith(TEMP_AUDIO_PREFIX),
@@ -23,14 +20,16 @@ const transcribeSchema = z.object({
   contentType: z.string().min(1).optional(),
 })
 
+function logTranscribeEvent(event: string, details: Record<string, unknown>) {
+  console.info(JSON.stringify({ scope: 'audio-transcribe', event, ...details }))
+}
+
 /**
  * POST /api/transcribe
- * 
- * Transcribes audio from object storage through WAV normalization and Gemini Files API.
+ *
+ * Transcribes audio from object storage through a temporary signed URL and BAML.
  */
 export async function POST(request: NextRequest) {
-  let geminiFileName: string | null = null
-
   try {
     const { userId } = await auth()
 
@@ -38,45 +37,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    validateGeminiFilesEnvironment()
+    validateBAMLEnvironment()
     const payload = transcribeSchema.parse(await request.json())
     const s3 = createAudioSpacesClient()
 
-    const objectResponse = await getTemporaryAudioObject(s3, payload.objectKey)
+    logTranscribeEvent('request_received', {
+      objectKey: payload.objectKey,
+      userId,
+      contentType: payload.contentType ?? null,
+      fieldsSchemaLength: payload.fieldsSchema.length,
+    })
 
-    if (!objectResponse.Body) {
-      throw new Error('Uploaded audio object is empty')
-    }
+    const audioReadUrl = await createTemporaryAudioReadUrl(s3, payload.objectKey)
+    const signedUrl = new URL(audioReadUrl)
 
-    const mediaType = payload.contentType ?? objectResponse.ContentType
-    const audioBytes = Buffer.from(await objectResponse.Body.transformToByteArray())
-    const normalizedAudio = await normalizeAudioToWavPcmMono(audioBytes, mediaType)
-    const geminiFile = await uploadAudioToGeminiFile(normalizedAudio, 'audio/wav')
-    geminiFileName = geminiFile.name
+    logTranscribeEvent('signed_url_created', {
+      objectKey: payload.objectKey,
+      signedUrlOrigin: signedUrl.origin,
+      signedUrlPath: signedUrl.pathname,
+    })
 
-    const transcriptionResult = await transcribeConsultationWithGeminiFile(
-      geminiFile.uri,
+    logTranscribeEvent('baml_request_started', {
+      objectKey: payload.objectKey,
+    })
+
+    const transcriptionResult = await transcribeConsultationWithBAML(
+      audioReadUrl,
       payload.fieldsSchema,
-      'audio/wav'
+      payload.contentType
     )
+
+    logTranscribeEvent('baml_request_succeeded', {
+      objectKey: payload.objectKey,
+      transcriptLength: transcriptionResult.transcript_final.length,
+      structuredFieldCount: Object.keys(transcriptionResult.structured_fields).length,
+      warningCount: transcriptionResult.warnings.length,
+      missingFieldCount: transcriptionResult.missing_fields.length,
+      uncertainFieldCount: transcriptionResult.uncertain_fields.length,
+    })
 
     return NextResponse.json(transcriptionResult)
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error occurred during transcription'
 
+    console.error(
+      JSON.stringify({
+        scope: 'audio-transcribe',
+        event: 'request_failed',
+        error: errorMessage,
+      })
+    )
+
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }
     )
-  } finally {
-    if (geminiFileName) {
-      try {
-        await deleteGeminiFile(geminiFileName)
-      } catch (error) {
-        console.error('[Transcribe] Failed to delete Gemini temporary audio file:', error)
-      }
-    }
   }
 }
 

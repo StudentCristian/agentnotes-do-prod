@@ -64,14 +64,14 @@ function normalizeAudioMediaType(contentType?: string) {
 }
 
 export async function transcribeConsultationWithBAML(
-  audioBase64: string,
+  audioUrl: string,
   fieldsSchema: string,
   contentType?: string
 ) {
   const client = getBAMLClient()
   const mediaType = normalizeAudioMediaType(contentType) ?? 'audio/webm'
   const result = await client.TranscribeConsultation(
-    Audio.fromBase64(mediaType, audioBase64),
+    Audio.fromUrl(audioUrl, mediaType),
     fieldsSchema
   )
 

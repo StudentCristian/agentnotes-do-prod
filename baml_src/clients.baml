@@ -16,7 +16,7 @@ client<llm> GoogleGeminiClient {
     model "gemini-2.5-flash"
     api_key env.GOOGLE_AI_API_KEY
     media_url_handler {
-      audio "send_base64"
+      audio "send_url"
       image "send_base64"
       pdf "send_base64"
       video "send_base64"

@@ -1,7 +1,9 @@
 **ADR-0002: Flujo de audio con DigitalOcean Spaces y Gemini**  
-**Estado:** En implementación  
+**Estado:** Archivado como implementacion previa; parcialmente reemplazado por ADR-0003  
 **Fecha:** 2026-07-06  
 **Proyecto:** agentnotes-do-prod  
+
+> Nota: este ADR describe la implementacion previa basada en normalizacion backend + Gemini Files API. La arquitectura activa para transcripcion de audio ahora se rige por ADR-0003, que conserva Spaces privado y borrado manual pero reemplaza la transcripcion por BAML con URL firmada temporal de lectura.
 
 ### Contexto
 
