@@ -1,7 +1,10 @@
 {
   "CORSRules": [
     {
-      "AllowedOrigins": ["https://agentnotes-rehz2.ondigitalocean.app"],
+      "AllowedOrigins": [
+        "https://agentnotes-rehz2.ondigitalocean.app",
+        "https://agentnotes.app"
+      ],
       "AllowedMethods": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
       "AllowedHeaders": ["*"],
       "ExposeHeaders": ["ETag"],
