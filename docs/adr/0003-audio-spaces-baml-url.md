@@ -15,7 +15,7 @@ We will migrate the audio transcription pipeline to BAML using signed Spaces URL
 
 The new flow is:
 
-1. The client uploads audio to DigitalOcean Spaces as it does today.
+1. The client uploads audio to DigitalOcean Spaces as it does today, using a signed browser upload when possible and a same-origin server-side fallback when the browser upload cannot complete.
 2. The backend generates a temporary signed read URL for the uploaded object.
 3. The backend passes that URL to BAML using `Audio.from_url(...)`.
 4. BAML performs the transcription and structured output generation.
@@ -48,10 +48,11 @@ Spaces already provides a good temporary-storage model for audio recordings, and
 
 To support this ADR, the codebase must:
 
-- Add a backend endpoint to generate a signed read URL for a Spaces object.
+- Add backend support to generate a signed read URL for a Spaces object.
 - Update the BAML audio client to use `Audio.from_url(...)`.
 - Configure the Google AI BAML provider to preserve audio URLs with `send_url`.
 - Keep the object storage bucket private.
+- Keep the audio `contentType` explicit through upload and transcription so BAML can preserve the correct media type.
 - Maintain the existing manual deletion flow and 24-hour lifecycle policy.
 
 ## Constraints
@@ -73,4 +74,11 @@ The current Gemini Files API-based implementation is archived as the previous ve
 
 ## Notes
 
-This ADR intentionally preserves the current audio upload and temporary storage behavior. The only architectural change is the transcription mechanism and the way the model receives the audio input.
+This ADR intentionally preserves the current audio upload and temporary storage behavior. The main architectural change is the transcription mechanism and the way the model receives the audio input.
+
+Operational clarifications retained within this ADR scope:
+
+- The preferred upload path is still direct browser upload to Spaces using a presigned `PUT` URL.
+- A same-origin backend upload fallback is allowed as a resiliency mechanism when the browser cannot complete the direct upload because of network or cross-origin issues.
+- Signed `PUT` URLs may target the browser-visible Spaces endpoint, while signed `GET` URLs and other backend object operations may use the internal server-side Spaces endpoint configuration.
+- The temporary object is not deleted automatically after transcription; it remains available for explicit user deletion and for lifecycle cleanup.

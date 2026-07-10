@@ -17,7 +17,7 @@ import {
 const transcribeSchema = z.object({
   objectKey: z.string().min(1).startsWith(TEMP_AUDIO_PREFIX),
   fieldsSchema: z.string().min(1),
-  contentType: z.string().min(1).optional(),
+  contentType: z.string().min(1),
 })
 
 function logTranscribeEvent(event: string, details: Record<string, unknown>) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     logTranscribeEvent('request_received', {
       objectKey: payload.objectKey,
       userId,
-      contentType: payload.contentType ?? null,
+      contentType: payload.contentType,
       fieldsSchemaLength: payload.fieldsSchema.length,
     })
 

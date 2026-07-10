@@ -6,6 +6,7 @@ import {
   getSpacesCredentials,
   getSpacesEndpoint,
   getSpacesForcePathStyle,
+  getSpacesPublicEndpoint,
   getSpacesRegion,
 } from '@/lib/spaces'
 
@@ -27,6 +28,19 @@ const SUPPORTED_AUDIO_MEDIA_TYPES = new Set([
   'video/webm',
 ])
 
+const AUDIO_EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
+  'audio/webm': 'webm',
+  'video/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+}
+
 export function createAudioSpacesClient(endpoint = getSpacesEndpoint()) {
   return new S3Client({
     endpoint,
@@ -34,6 +48,10 @@ export function createAudioSpacesClient(endpoint = getSpacesEndpoint()) {
     forcePathStyle: getSpacesForcePathStyle(),
     credentials: getSpacesCredentials(),
   })
+}
+
+export function createBrowserAudioSpacesClient() {
+  return createAudioSpacesClient(getSpacesPublicEndpoint())
 }
 
 export function normalizeAudioContentType(contentType: string) {
@@ -46,6 +64,22 @@ export function assertSupportedAudioContentType(contentType: string) {
   if (!SUPPORTED_AUDIO_MEDIA_TYPES.has(mediaType)) {
     throw new Error(`Unsupported audio content type: ${contentType}`)
   }
+}
+
+export function getAudioExtensionForContentType(contentType: string) {
+  const mediaType = normalizeAudioContentType(contentType)
+  const extension = AUDIO_EXTENSION_BY_MEDIA_TYPE[mediaType]
+
+  if (!extension) {
+    throw new Error(`Unsupported audio content type: ${contentType}`)
+  }
+
+  return extension
+}
+
+export function createTemporaryAudioFileName(contentType: string, baseName = 'consultation') {
+  assertSupportedAudioContentType(contentType)
+  return `${baseName}.${getAudioExtensionForContentType(contentType)}`
 }
 
 export function createTemporaryAudioObjectKey(fileName: string) {

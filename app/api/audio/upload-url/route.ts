@@ -8,13 +8,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { z } from 'zod'
 import {
   assertSupportedAudioContentType,
-  createAudioSpacesClient,
+  createBrowserAudioSpacesClient,
   createTemporaryAudioObjectKey,
 } from '@/lib/audio/spaces-audio'
-import {
-  getSpacesBucket,
-  getSpacesPublicEndpoint,
-} from '@/lib/spaces'
+import { getSpacesBucket } from '@/lib/spaces'
 
 const uploadUrlSchema = z.object({
   fileName: z.string().min(1),
@@ -43,8 +40,7 @@ export async function POST(request: NextRequest) {
     })
 
     const bucket = getSpacesBucket()
-    const endpoint = getSpacesPublicEndpoint()
-    const s3 = createAudioSpacesClient(endpoint)
+  const s3 = createBrowserAudioSpacesClient()
     const objectKey = createTemporaryAudioObjectKey(payload.fileName)
 
     const command = new PutObjectCommand({

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import type { ConsultationOutput } from "@/lib/bamlClient"
+import { createTemporaryAudioFileName } from "@/lib/audio/spaces-audio"
 import { buildConsultationFieldSchema } from "@/lib/consultation-fields"
 
 interface UseTranscribeOptions {
@@ -34,12 +35,12 @@ async function getTranscriptionErrorMessage(response: Response) {
   return `Transcription failed: ${response.statusText}`
 }
 
-async function uploadAudioViaBackend(audioBlob: Blob, contentType: string) {
+async function uploadAudioViaBackend(audioBlob: Blob, contentType: string, fileName: string) {
   const response = await fetch("/api/audio/upload", {
     method: "POST",
     headers: {
       "Content-Type": contentType,
-      "X-File-Name": "consultation.webm",
+      "X-File-Name": fileName,
     },
     body: audioBlob,
   })
@@ -54,6 +55,26 @@ async function uploadAudioViaBackend(audioBlob: Blob, contentType: string) {
   }
 }
 
+async function requestTranscription(objectKey: string, contentType: string) {
+  const response = await fetch("/api/transcribe", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      objectKey,
+      fieldsSchema: buildConsultationFieldSchema(),
+      contentType,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getTranscriptionErrorMessage(response))
+  }
+
+  return (await response.json()) as ConsultationOutput
+}
+
 export function useTranscribe(options?: UseTranscribeOptions) {
   const [data, setData] = useState<ConsultationOutput | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -64,6 +85,7 @@ export function useTranscribe(options?: UseTranscribeOptions) {
   const transcribeAudio = useCallback(
     async (audioBlob: Blob) => {
       const contentType = normalizeRecordedAudioContentType(audioBlob.type)
+      const fileName = createTemporaryAudioFileName(contentType)
 
       setIsLoading(true)
       setError(null)
@@ -77,7 +99,7 @@ export function useTranscribe(options?: UseTranscribeOptions) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            fileName: "consultation.webm",
+            fileName,
             contentType,
           }),
         })
@@ -102,27 +124,11 @@ export function useTranscribe(options?: UseTranscribeOptions) {
             body: audioBlob,
           })
         } catch (uploadError) {
-          const fallbackUpload = await uploadAudioViaBackend(audioBlob, contentType)
+          const fallbackUpload = await uploadAudioViaBackend(audioBlob, contentType, fileName)
           setAudioObjectKey(fallbackUpload.objectKey)
           setPhase("transcribing")
 
-          const fallbackResponse = await fetch("/api/transcribe", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              objectKey: fallbackUpload.objectKey,
-              fieldsSchema: buildConsultationFieldSchema(),
-              contentType,
-            }),
-          })
-
-          if (!fallbackResponse.ok) {
-            throw new Error(await getTranscriptionErrorMessage(fallbackResponse))
-          }
-
-          const fallbackResult: ConsultationOutput = await fallbackResponse.json()
+          const fallbackResult = await requestTranscription(fallbackUpload.objectKey, contentType)
           setData(fallbackResult)
           setPhase("done")
           options?.onSuccess?.(fallbackResult)
@@ -130,30 +136,22 @@ export function useTranscribe(options?: UseTranscribeOptions) {
         }
 
         if (!uploadResponse.ok) {
-          throw new Error(`Audio upload failed: ${uploadResponse.statusText}`)
+          const fallbackUpload = await uploadAudioViaBackend(audioBlob, contentType, fileName)
+          setAudioObjectKey(fallbackUpload.objectKey)
+          setPhase("transcribing")
+
+          const fallbackResult = await requestTranscription(fallbackUpload.objectKey, contentType)
+          setData(fallbackResult)
+          setPhase("done")
+          options?.onSuccess?.(fallbackResult)
+          return fallbackResult
         }
 
         setAudioObjectKey(uploadPayload.objectKey)
 
         setPhase("transcribing")
 
-        const response = await fetch("/api/transcribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            objectKey: uploadPayload.objectKey,
-            fieldsSchema: buildConsultationFieldSchema(),
-            contentType,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(await getTranscriptionErrorMessage(response))
-        }
-
-        const result: ConsultationOutput = await response.json()
+        const result = await requestTranscription(uploadPayload.objectKey, contentType)
         setData(result)
         setPhase("done")
         options?.onSuccess?.(result)
