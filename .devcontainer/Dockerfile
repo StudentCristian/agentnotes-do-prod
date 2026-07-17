@@ -1,14 +1,14 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm
+FROM mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
 
 USER root
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends awscli jq postgresql-client \
+  && apt-get install -y --no-install-recommends awscli jq \
   && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc \
-  && chmod +x /usr/local/bin/mc
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
-RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
+RUN mkdir -p /home/node/.local/share/pnpm \
+  && chown -R node:node /home/node/.local
 
 USER node

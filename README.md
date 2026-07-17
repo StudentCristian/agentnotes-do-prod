@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgentNotes
 
-## Getting Started
+## Local development
 
-First, run the development server:
+The official local workflow is defined in [docs/adr/001-local-docker-run.md](docs/adr/001-local-docker-run.md).
+
+- Docker is used only for the application container.
+- Local development uses real DigitalOcean services through `.env.local`.
+- The repository contract is `Node 22.x` and `pnpm@11.9.0`.
+
+### Required local files
+
+1. Copy `.env.example` to `.env.local`.
+2. Fill `.env.local` with real values for Clerk, Edge Store, Google AI, DigitalOcean Spaces, and PostgreSQL.
+
+### Start the local container
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose -f docker-compose.dev.yml up -d app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install dependencies and generate BAML client
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && CI=true pnpm install --config.confirmModulesPurge=false && pnpm exec baml-cli generate --from baml_src'
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Start Next.js in development mode
 
-## Learn More
+```bash
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm dev --hostname 0.0.0.0'
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Minimal manual validation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+curl -i http://127.0.0.1:3000/api/health
+curl -I http://127.0.0.1:3000/
+curl -I http://127.0.0.1:3000/sign-in
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Optional validation commands
 
-## Deploy on Vercel
+```bash
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm build'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm lint'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm smoke:audio'
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Stop the local container
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker compose -f docker-compose.dev.yml down
+```

@@ -1,61 +1,59 @@
 # 07 Local Run
 
+## Estado
+
+Este documento reemplaza el runbook heredado con Postgres y MinIO locales.
+
 ## Objetivo
 
-Levantar AgentNotes en local usando Docker para los servicios de backend y ejecutar el servidor Next.js dentro del contenedor `app`.
+Levantar AgentNotes en local usando Docker solo para la aplicación y consumir servicios reales de DigitalOcean definidos en `.env.local`.
 
 ## Prerrequisitos
 
-- Estar ubicado en la raíz del proyecto `AgentNote/`.
+- Estar ubicado en la raíz del repositorio.
 - Tener Docker Desktop o Docker Engine activo.
-- Tener `.env.local` presente en la raíz del proyecto.
+- Tener `.env.local` creado a partir de `.env.example` con valores reales.
 
-## Comandos usados
+## Flujo oficial
 
-### 1. Levantar servicios Docker del entorno local
+### 1. Levantar el contenedor de aplicación
 
 ```bash
-cd /mnt/c/Users/Pc/Desktop/agentnotesv1/agentnotes-do/AgentNote
-docker compose -f docker-compose.dev.yml up -d postgres minio minio-init app
+docker compose -f docker-compose.dev.yml up -d app
 ```
 
-### 2. Verificar estado de los contenedores
+### 2. Verificar estado del contenedor
 
 ```bash
 docker compose -f docker-compose.dev.yml ps
 ```
 
-### 3. Arrancar Next.js dentro del contenedor `app`
-
-Este comando deja el servidor corriendo en segundo plano dentro del contenedor y escribe logs en `/tmp/agentnotes-next.log`.
+### 3. Instalar dependencias y generar cliente BAML
 
 ```bash
-docker exec -d agentnote-app-1 bash -lc 'cd /workspace && rm -f /tmp/agentnotes-next.log && setsid ./node_modules/.bin/next dev --hostname 0.0.0.0 > /tmp/agentnotes-next.log 2>&1 < /dev/null'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && CI=true pnpm install --config.confirmModulesPurge=false && pnpm exec baml-cli generate --from baml_src'
 ```
 
-### 4. Verificar que Next.js quedó arriba
+### 4. Arrancar Next.js dentro del contenedor
 
 ```bash
-docker exec agentnote-app-1 bash -lc 'ps -ef | grep -E "next dev|next-server" | grep -v grep || true; echo ---; sed -n "1,120p" /tmp/agentnotes-next.log || true'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm dev --hostname 0.0.0.0'
 ```
 
-### 5. Comprobar healthcheck desde el contenedor
+### 5. Validación manual mínima
 
 ```bash
-docker exec agentnote-app-1 bash -lc 'curl -i --max-time 20 http://127.0.0.1:3000/api/health'
+curl -i http://127.0.0.1:3000/api/health
+curl -I http://127.0.0.1:3000/
+curl -I http://127.0.0.1:3000/sign-in
 ```
 
-### 6. Comprobar landing y sign-in desde el contenedor
+### 6. Validaciones opcionales
 
 ```bash
-docker exec agentnote-app-1 bash -lc 'curl -I --max-time 20 http://127.0.0.1:3000/ && echo --- && curl -I --max-time 20 http://127.0.0.1:3000/sign-in'
-```
-
-### 7. Comprobar acceso desde el host
-
-```bash
-curl -I --max-time 20 http://127.0.0.1:3000/
-curl -I --max-time 20 http://127.0.0.1:3000/api/health
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm build'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm lint'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm smoke:audio'
 ```
 
 ## URLs locales
@@ -63,28 +61,13 @@ curl -I --max-time 20 http://127.0.0.1:3000/api/health
 - App: `http://localhost:3000`
 - Sign in: `http://localhost:3000/sign-in`
 - Healthcheck: `http://localhost:3000/api/health`
-- MinIO API: `http://localhost:9000`
-- MinIO Console: `http://localhost:9001`
-- PostgreSQL: `localhost:5432`
 
 ## Verificación esperada
 
 - `GET /api/health` responde `200 OK` con JSON.
 - `GET /` responde `200 OK`.
 - `GET /sign-in` responde `200 OK`.
-- `docker compose ps` muestra `postgres`, `minio` y `app` en estado `Up`.
-
-## Ver logs de Next.js
-
-```bash
-docker exec agentnote-app-1 bash -lc 'sed -n "1,200p" /tmp/agentnotes-next.log'
-```
-
-## Detener el servidor Next.js dentro del contenedor
-
-```bash
-docker exec agentnote-app-1 bash -lc 'pkill -f "next dev|next/dist/bin/next dev|next-server" || true'
-```
+- `docker compose ps` muestra solo `app` en estado `Up`.
 
 ## Bajar el stack local
 

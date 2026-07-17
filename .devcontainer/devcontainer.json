@@ -2,28 +2,20 @@
   "name": "AgentNotes Production Parity",
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "app",
-  "runServices": ["app", "postgres", "minio", "minio-init"],
+  "runServices": ["app"],
   "workspaceFolder": "/workspace",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "shutdownAction": "stopCompose",
   "remoteUser": "node",
-  "forwardPorts": [3000, 5432, 9000, 9001],
+  "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
       "label": "Next.js"
-    },
-    "5432": {
-      "label": "PostgreSQL"
-    },
-    "9000": {
-      "label": "MinIO API"
-    },
-    "9001": {
-      "label": "MinIO Console"
     }
   },
   "containerEnv": {
-    "SHELL": "/bin/bash"
+    "SHELL": "/bin/bash",
+    "PNPM_STORE_DIR": "/pnpm-store"
   },
   "customizations": {
     "vscode": {

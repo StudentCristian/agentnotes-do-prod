@@ -1,5 +1,3 @@
-const LOCAL_PUBLIC_ENDPOINT = "http://localhost:9000"
-
 function normalizeEndpoint(endpoint: string) {
   return endpoint.replace(/\/$/, "")
 }
@@ -37,14 +35,6 @@ export function getSpacesRegion() {
 export function getSpacesCredentials() {
   const accessKeyId = process.env.DO_SPACES_KEY
   const secretAccessKey = process.env.DO_SPACES_SECRET
-  const endpoint = getSpacesEndpoint()
-
-  if ((!accessKeyId || !secretAccessKey) && isLocalSpacesEndpoint(endpoint)) {
-    return {
-      accessKeyId: "minioadmin",
-      secretAccessKey: "minioadmin",
-    }
-  }
 
   if (!accessKeyId || !secretAccessKey) {
     throw new Error(
@@ -55,21 +45,10 @@ export function getSpacesCredentials() {
   return { accessKeyId, secretAccessKey }
 }
 
-export function isLocalSpacesEndpoint(endpoint: string) {
-  return endpoint.includes("minio") || endpoint.includes("localhost")
-}
-
 export function getSpacesPublicEndpoint() {
-  const endpoint = getSpacesEndpoint()
-
-  if (isLocalSpacesEndpoint(endpoint)) {
-    return LOCAL_PUBLIC_ENDPOINT
-  }
-
-  return endpoint
+  return getSpacesEndpoint()
 }
 
 export function getSpacesForcePathStyle() {
-  const endpoint = getSpacesEndpoint()
-  return isLocalSpacesEndpoint(endpoint)
+  return false
 }

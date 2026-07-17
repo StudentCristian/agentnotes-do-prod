@@ -3,7 +3,8 @@
     {
       "AllowedOrigins": [
         "https://agentnotes-rehz2.ondigitalocean.app",
-        "https://agentnotes.app"
+        "https://agentnotes.app",
+        "http://localhost:3000"
       ],
       "AllowedMethods": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
       "AllowedHeaders": ["*"],

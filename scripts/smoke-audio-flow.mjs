@@ -51,25 +51,17 @@ function normalizeEndpoint(endpoint) {
 }
 
 function getHostVisibleEndpoint() {
-  const endpoint = normalizeEndpoint(
-    process.env.SMOKE_S3_ENDPOINT ?? process.env.DO_SPACES_ENDPOINT ?? 'http://127.0.0.1:9000'
-  )
-
-  if (endpoint.includes('minio')) {
-    return 'http://127.0.0.1:9000'
-  }
-
-  return endpoint
+  return normalizeEndpoint(getEnv('SMOKE_S3_ENDPOINT', process.env.DO_SPACES_ENDPOINT))
 }
 
 function getS3Client() {
   return new S3Client({
     endpoint: getHostVisibleEndpoint(),
-    region: process.env.DO_SPACES_REGION ?? 'us-east-1',
-    forcePathStyle: true,
+    region: getEnv('DO_SPACES_REGION'),
+    forcePathStyle: false,
     credentials: {
-      accessKeyId: getEnv('DO_SPACES_KEY', 'minioadmin'),
-      secretAccessKey: getEnv('DO_SPACES_SECRET', 'minioadmin'),
+      accessKeyId: getEnv('DO_SPACES_KEY'),
+      secretAccessKey: getEnv('DO_SPACES_SECRET'),
     },
   })
 }

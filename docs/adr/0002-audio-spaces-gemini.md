@@ -1,4 +1,4 @@
-**ADR-0002: Flujo de audio con DigitalOcean Spaces y Gemini**  
+# **ADR-0002: Flujo de audio con DigitalOcean Spaces y Gemini**  
 **Estado:** Archivado como implementacion previa; parcialmente reemplazado por ADR-0003  
 **Fecha:** 2026-07-06  
 **Proyecto:** agentnotes-do-prod  
