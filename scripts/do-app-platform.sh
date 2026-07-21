@@ -74,6 +74,28 @@ for env_name in "${required_envs[@]}"; do
   fi
 done
 
+if [[ "$DATABASE_URL" != *":25061/"* ]]; then
+  echo "DATABASE_URL must be the pooled runtime connection string for App Platform" >&2
+  exit 1
+fi
+
+if [[ -n "${DIRECT_URL:-}" ]]; then
+  if [[ "$DIRECT_URL" == *":25061/"* ]]; then
+    echo "DIRECT_URL must be a direct database connection, not the pooled runtime URL" >&2
+    exit 1
+  fi
+
+  if [[ "$DIRECT_URL" != *":25060/"* ]]; then
+    echo "DIRECT_URL must point to the direct DigitalOcean PostgreSQL port" >&2
+    exit 1
+  fi
+
+  if [[ "$DIRECT_URL" == "$DATABASE_URL" ]]; then
+    echo "DIRECT_URL must not be the same value as DATABASE_URL" >&2
+    exit 1
+  fi
+fi
+
 export DO_SPACES_BUCKET="${DO_SPACES_BUCKET:-agentnotes-audio-prod}"
 export DO_SPACES_REGION="${DO_SPACES_REGION:-nyc3}"
 export DO_SPACES_ENDPOINT="${DO_SPACES_ENDPOINT:-https://nyc3.digitaloceanspaces.com}"
@@ -82,7 +104,8 @@ lookup_app_id() {
   doctl apps list --format ID,Spec.Name --no-header | awk -v app_name="$APP_NAME" '$2 == app_name { print $1; exit }'
 }
 
-rendered_spec="$(mktemp)"
+spec_dir="$(dirname "$SPEC_PATH")"
+rendered_spec="$(mktemp "$spec_dir/.rendered-app.XXXXXX.yaml")"
 trap 'rm -f "$rendered_spec"' EXIT
 
 awk '

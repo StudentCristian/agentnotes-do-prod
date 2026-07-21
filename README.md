@@ -47,8 +47,34 @@ docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm lint'
 docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm smoke:audio'
 ```
 
+### Prisma workflows
+
+`DATABASE_URL` is the pooled runtime connection string used by the Next.js app. `DIRECT_URL` is the direct database connection string used by Prisma CLI workflows such as introspection, migrations, and Studio.
+
+```bash
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm prisma:generate'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm prisma:validate'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm prisma:pull'
+docker exec -it agentnotes-do-prod-app-1 bash -lc 'cd /workspace && pnpm prisma:migrate:status'
+```
+
+Only run `prisma:pull` or migration commands after `.env.local` contains `DIRECT_URL` for the direct PostgreSQL connection and the `agentnotes` schema.
+
 ### Stop the local container
 
 ```bash
 docker compose -f docker-compose.dev.yml down
 ```
+
+## DigitalOcean App Platform deployment
+
+App Platform runtime must receive `DATABASE_URL` as the pooled PostgreSQL connection string. Do not use the direct database URL for app runtime traffic.
+
+Keep `DIRECT_URL` as a GitHub Actions production secret for operational Prisma workflows only. It is passed to the rollout script for validation, but it is not rendered into `.do/app.yaml` and is not required by the app container.
+
+Required production secrets:
+
+- `DATABASE_URL`: pooled runtime connection string, expected on DigitalOcean pool port `25061`.
+- `DIRECT_URL`: direct PostgreSQL connection string for Prisma migrations/introspection, expected on port `25060` with `schema=agentnotes`.
+
+The deployment script rejects a non-pooled `DATABASE_URL` and rejects a pooled `DIRECT_URL` before updating App Platform.

@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["agentnotes"]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model consultation_fields {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consultation_id    String          @db.Uuid
+  field_template_id  String          @db.Uuid
+  field_key_snapshot String
+  field_value        String?
+  confidence         Decimal?        @db.Decimal(5, 4)
+  source             String          @default("ai")
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @default(now()) @db.Timestamptz(6)
+  consultations      consultations   @relation(fields: [consultation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  field_templates    field_templates @relation(fields: [field_template_id], references: [id], onUpdate: NoAction)
+
+  @@unique([consultation_id, field_template_id], map: "consultation_fields_unique_field")
+  @@index([consultation_id], map: "consultation_fields_consultation_idx")
+  @@schema("agentnotes")
+}
+
+model consultations {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id          String                @db.Uuid
+  status              String                @default("draft")
+  audio_object_key    String?
+  transcript_final    String?
+  warnings            Json                  @default("[]")
+  missing_fields      Json                  @default("[]")
+  uncertain_fields    Json                  @default("[]")
+  consultation_at     DateTime              @default(now()) @db.Timestamptz(6)
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  consultation_fields consultation_fields[]
+  patients            patients              @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  generated_documents generated_documents[]
+
+  @@index([patient_id, consultation_at(sort: Desc)], map: "consultations_patient_id_idx")
+  @@schema("agentnotes")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model field_templates {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  field_key           String                @unique
+  label               String
+  field_type          String                @default("text")
+  is_required         Boolean               @default(false)
+  display_order       Int                   @default(0)
+  schema_version      Int                   @default(1)
+  is_active           Boolean               @default(true)
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  consultation_fields consultation_fields[]
+
+  @@schema("agentnotes")
+}
+
+model generated_documents {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consultation_id     String        @db.Uuid
+  template_name       String
+  template_object_key String?
+  output_object_key   String?
+  mime_type           String        @default("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+  generated_at        DateTime      @default(now()) @db.Timestamptz(6)
+  created_at          DateTime      @default(now()) @db.Timestamptz(6)
+  consultations       consultations @relation(fields: [consultation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([consultation_id, generated_at(sort: Desc)], map: "generated_documents_consultation_idx")
+  @@schema("agentnotes")
+}
+
+model patients {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_id   String?         @unique
+  full_name     String
+  date_of_birth DateTime?       @db.Date
+  sex           String?
+  notes         String?
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  consultations consultations[]
+
+  @@schema("agentnotes")
+}
