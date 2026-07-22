@@ -1,7 +1,8 @@
 # ADR 0004: Prisma DigitalOcean PostgreSQL Connection Strategy
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-07-18
+- Implemented: 2026-07-22
 - Related documents:
   - DigitalOcean Managed PostgreSQL cluster `agentnotes-db-cluster`
   - Next.js app `agentnotes-do-prod`
@@ -76,22 +77,47 @@ This option matches the operational needs of a Next.js application deployed on D
 
 The expected environment variables are:
 
-- `DATABASE_URL`: pooled connection used by the running Next.js application.
-- `DIRECT_URL`: direct connection used by Prisma CLI workflows.
+- `DATABASE_URL`: pooled connection (PgBouncer, port 25061) used by the running Next.js application.
+- `DIRECT_URL`: direct connection (port 25060, base `agentnotes`, user `agentnotes_app`) used by Prisma CLI workflows.
 
-The Prisma datasource should use both values:
+The Prisma datasource uses both values:
 
 ```prisma
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["agentnotes"]
 }
 ```
 
 Operationally:
-- Next.js runtime uses `DATABASE_URL`.
-- `prisma migrate dev`, `prisma migrate deploy`, Prisma Studio, and similar workflows use `DIRECT_URL`.
+- Next.js runtime uses `DATABASE_URL` → pool `agentnotes_app_pool` on port 25061.
+- `prisma migrate dev`, `prisma migrate deploy`, Prisma Studio, and similar workflows use `DIRECT_URL` → direct on port 25060, base `agentnotes`, user `agentnotes_app`.
+
+### Initial schema setup note
+
+`db-setup.sql` must be executed once with `doadmin` on base `agentnotes` (port 25060) to create the schema, extensions, tables, and grant privileges to `agentnotes_app`. This is a one-time infrastructure bootstrap step, not a runtime operation. After setup, `doadmin` is not used by any application or CLI workflow.
+
+### Verified connection map
+
+| Variable | User | Port | Base | Purpose |
+|---|---|---|---|---|
+| `DATABASE_URL` | `agentnotes_app` | 25061 | `agentnotes_app_pool` | Next.js runtime |
+| `DIRECT_URL` | `agentnotes_app` | 25060 | `agentnotes` | Prisma CLI / migrations |
+
+### Smoke test result (2026-07-22)
+
+```json
+{
+  "status": "ok",
+  "database": "postgresql",
+  "schema": "agentnotes",
+  "patientsCount": 0,
+  "latencyMs": 2202,
+  "timestamp": "2026-07-22T21:13:30.720Z"
+}
+```
 
 ## Possible Improvements
 
@@ -99,6 +125,7 @@ Operationally:
 - Add a dedicated readonly role for reporting or diagnostics.
 - Add stronger TLS validation with the CA certificate when needed.
 - Add seed scripts and schema documentation once the first domain models are defined.
+- Rotate `agentnotes_app` password after any local development session that exposed the credential.
 
 ## Related Decisions
 
